@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Request unavailable{% endblock %}
+{% block main %}
+<section class="panel error-panel">
+  <p class="eyebrow">REQUEST UNAVAILABLE</p>
+  <h1>{{ error.name }}</h1>
+  <p class="muted">{{ error.description }}</p>
+  <a class="primary" href="{{ url_for('home') }}">Return to the portal {{ icon('arrow', 18) }}</a>
+</section>
+{% endblock %}

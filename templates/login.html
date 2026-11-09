@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Staff sign-in{% endblock %}
+{% block main %}
+<div class="login-layout">
+  <section class="welcome">
+    <p class="eyebrow"><span></span> REGISTRATION & PHARMACY</p>
+    <h1>Patient services,<br>from one desk.</h1>
+    <p class="welcome-copy">Find the patient, confirm their identity, and continue to the service they need.</p>
+    <div class="welcome-steps" aria-label="Registration steps">
+      <span><b>01</b> Find patient</span><span><b>02</b> Review records</span><span><b>03</b> Start a service</span>
+    </div>
+    <p class="welcome-note">প্রথমে রোগী শনাক্ত করুন</p>
+  </section>
+  <section class="panel login-panel">
+    <p class="eyebrow">STAFF ACCESS</p>
+    <h2>Sign in</h2>
+    <p class="muted" lang="bn">স্টাফ আইডি দিয়ে প্রবেশ করুন</p>
+    <form method="post" action="{{ url_for('login') }}" class="form-stack">
+      {{ csrf() }}
+      <label>Staff ID <input name="username" autocomplete="username" required maxlength="40" placeholder="Enter your staff ID"></label>
+      <label>Password <input name="password" type="password" autocomplete="current-password" required maxlength="128" placeholder="Enter your password"></label>
+      <button class="primary" type="submit">Sign in {{ icon('arrow', 18) }}</button>
+    </form>
+    <div class="demo-login">
+      <p class="small-heading">Try a demo account</p>
+      <form method="post" action="{{ url_for('login') }}" class="button-row">
+        {{ csrf() }}<input type="hidden" name="password" value="{{ demo_password }}">
+        <button name="username" value="registrar" class="secondary">Demo registration</button>
+        <button name="username" value="pharmacy" class="secondary">Demo pharmacy</button>
+      </form>
+    </div>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}{{ actions[action][0] }}{% endblock %}
+{% block main %}
+<a class="back-link" href="{{ url_for('patient_page', patient_id=patient.id) }}">{{ icon('back', 18) }} Back to patient record</a>
+<div class="service-layout">
+  <section class="panel service-panel">
+    <p class="eyebrow">PATIENT SERVICES <span lang="bn">· {{ actions[action][1] }}</span></p>
+    <h1>{{ actions[action][0] }}</h1>
+    {% if action == 'appointment' %}
+      <p class="muted">Choose an available appointment. Times are shown in Dhaka time.</p>
+      {% if slots %}
+      <form method="post" class="form-stack">{{ csrf() }}
+        <label for="slot">Department, doctor, and time</label>
+        <select id="slot" name="slot" required>
+          <option value="" selected disabled>Select an available time</option>
+          {% for department, group in slots|groupby('department') %}
+          <optgroup label="{{ department }}">{% for slot in group %}
+          <option value="{{ slot.id }}">{{ slot.doctor }} · {{ slot.starts|date_label }}</option>
+          {% endfor %}</optgroup>
+          {% endfor %}
+        </select>
+        <button class="primary">Book appointment {{ icon('arrow', 18) }}</button>
+      </form>
+      {% else %}<p class="notice">No appointment times are available.</p>{% endif %}
+    {% elif action == 'admission' %}
+      <p class="muted">Select the clinician’s order and an available bed in the assigned ward.</p>
+      {% if not orders %}<p class="notice">No open admission order is available for this patient.</p>
+      {% elif not beds|selectattr('ward', 'in', orders|map(attribute='ward')|list)|list %}<p class="notice">No beds are available in the assigned ward.</p>
+      {% else %}
+      <form method="post" class="form-stack">{{ csrf() }}
+        <label for="order">Clinician’s admission order</label>
+        <select id="order" name="order" required>{% for order in orders %}
+          <option value="{{ order.id }}" data-ward="{{ order.ward }}">{{ order.clinician }} · {{ order.ward }} · {{ order.on_date|date_label }}</option>
+        {% endfor %}</select>
+        <label for="bed">Available bed</label>
+        <select id="bed" name="bed" required><option value="" selected disabled>Select a bed</option>
+          {% for bed in beds if bed.ward in orders|map(attribute='ward')|list %}
+          <option value="{{ bed.id }}" data-ward="{{ bed.ward }}">{{ bed.ward }} · {{ bed.label }}</option>
+          {% endfor %}
+        </select>
+        <button class="primary">Save admission {{ icon('arrow', 18) }}</button>
+      </form>
+      {% endif %}
+    {% elif action == 'reports' %}
+      <p class="muted">Select the released reports you want to print.</p>
+      {% if reports %}
+      <form method="post" class="form-stack">{{ csrf() }}
+        <fieldset class="choices"><legend>Available reports</legend>
+          {% for report in reports %}<label class="choice"><input type="checkbox" name="report" value="{{ report.id }}" {% if reports|length == 1 %}checked{% endif %}>
+            <span><strong>{{ report.title }}</strong><small>{{ report.on_date|date_label }} · {{ report.source }}</small></span>
+          </label>{% endfor %}
+        </fieldset>
+        <button class="primary">{{ icon('print', 18) }} Open print preview</button>
+      </form>
+      {% else %}<p class="notice">No released reports are available for this patient.</p>{% endif %}
+    {% else %}
+      <p class="muted">Send an existing prescription to the pharmacy for collection.</p>
+      {% if not prescriptions %}<p class="notice">No prescriptions are available for this patient.</p>{% endif %}
+      {% for rx, items in prescriptions %}
+      <div class="prescription">
+        <h2>Prescription · {{ rx.on_date|date_label }}</h2><p class="muted">{{ rx.clinician }}</p>
+        <ul class="line-items">{% for item in items %}<li><span>{{ item.medicine }}</span><span>{{ item.prescribed - item.supplied }} remaining of {{ item.prescribed }}</span></li>{% endfor %}</ul>
+        {% if rx.collection_id %}
+        <p><span class="badge neutral">{{ rx.collection_status }}</span> <span class="code">MED-{{ '%04d'|format(rx.collection_id) }}</span></p>
+        {% else %}
+        <form method="post">{{ csrf() }}<input type="hidden" name="prescription" value="{{ rx.id }}">
+        <button class="primary">Send to pharmacy {{ icon('arrow', 18) }}</button></form>
+        {% endif %}
+      </div>
+      {% endfor %}
+    {% endif %}
+  </section>
+  <aside class="panel service-patient"><p class="eyebrow">PATIENT</p>{{ patient_strip(patient) }}
+    <span class="badge success-badge">{{ icon('check', 15) }} Identity confirmed</span>
+  </aside>
+</div>
+{% endblock %}

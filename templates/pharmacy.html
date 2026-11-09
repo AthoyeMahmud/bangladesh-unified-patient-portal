@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Pharmacy desk{% endblock %}
+{% block main %}
+{% if collection %}
+<a class="back-link" href="{{ url_for('pharmacy') }}">{{ icon('back', 18) }} Back to collection queue</a>
+<div class="service-layout">
+  <section class="panel service-panel">
+    <p class="eyebrow">PHARMACY DESK <span lang="bn">· ওষুধ কাউন্টার</span></p>
+    <h1>Record medicine collection</h1>
+    <div class="section-head"><span class="code">MED-{{ '%04d'|format(collection.id) }}</span><span class="badge {{ 'success-badge' if collection.status == 'Completed' else 'neutral' }}">{{ collection.status }}</span></div>
+    <p class="muted">Prescription from {{ collection.clinician }} · {{ collection.on_date|date_label }}</p>
+    <form method="post" class="form-stack">{{ csrf() }}<input type="hidden" name="revision" value="{{ collection.revision }}">
+      <ul class="line-items pharmacy-items">
+      {% for item in items %}{% set remaining = item.prescribed - item.supplied %}
+        <li>
+          <div><strong>{{ item.medicine }}</strong><small>{{ item.supplied }} supplied · {{ remaining }} remaining</small></div>
+          {% if remaining %}
+          <label>Quantity to supply <input type="number" name="quantity_{{ item.id }}" value="0" min="0" max="{{ remaining }}" step="1" required aria-label="Quantity to supply for {{ item.medicine }}"></label>
+          {% endif %}
+        </li>
+      {% endfor %}
+      </ul>
+      {% if collection.status != 'Completed' %}
+      <label class="choice identity-check"><input type="checkbox" name="identity" value="confirmed" required> I confirmed the patient’s name and date of birth.</label>
+      <div class="button-row"><button class="primary" name="outcome" value="supply">Save supplied quantities {{ icon('check', 18) }}</button>
+      <button class="secondary" name="outcome" value="unavailable">Mark unavailable</button></div>
+      {% endif %}
+    </form>
+    {% if events %}
+    <section class="section"><h2>Collection history</h2>
+      {% for event in events %}
+      <div class="row"><strong>{{ event.outcome }}</strong><small>{{ event.created_at|date_label }} UTC · {{ event.staff }}</small></div>
+      {% endfor %}
+    </section>
+    {% endif %}
+  </section>
+  <aside class="panel service-patient"><p class="eyebrow">PATIENT TO CONFIRM</p>{{ patient_strip(collection) }}</aside>
+</div>
+{% else %}
+<div class="page-heading"><p class="eyebrow">PHARMACY DESK <span lang="bn">· ওষুধ কাউন্টার</span></p><h1>Medicine collection</h1><p>Open a request from the registration desk to record what was supplied.</p></div>
+<section class="panel queue" aria-label="Collection requests">
+  <div class="section-head"><h2>Collection queue</h2><span class="badge neutral">{{ queue|length }} {{ 'request' if queue|length == 1 else 'requests' }}</span></div>
+  {% for item in queue %}
+  <a class="queue-row" href="{{ url_for('pharmacy_detail', collection_id=item.id) }}">
+    <span class="icon-box">{{ icon('pill') }}</span><span><strong>{{ item.name }}</strong><small>MED-{{ '%04d'|format(item.id) }} · {{ item.pin }}</small></span>
+    <span class="badge {{ 'success-badge' if item.status == 'Completed' else 'neutral' }}">{{ item.status }}</span>{{ icon('arrow', 18) }}
+  </a>
+  {% else %}<p class="notice">No collection requests yet. Requests appear after registration sends a prescription.</p>{% endfor %}
+</section>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Demo patient cards{% endblock %}
+{% block main %}
+<div class="print-controls button-row">
+  <a class="back-link" href="{{ url_for('lookup') }}">{{ icon('back', 18) }} Back to patient lookup</a>
+  <button class="primary" type="button" data-print>{{ icon('print', 18) }} Print demo cards</button>
+</div>
+<h1>Demo patient cards</h1><p class="muted">Scan a code or use the patient’s PIN to look up a sample record.</p>
+<div class="demo-cards">
+  {% for patient in patients %}
+  <article class="panel sample-card">
+    <p class="eyebrow">DEMO HOSPITAL</p>
+    {{ patient_strip(patient) }}
+    <p class="print-disclaimer">Demo — synthetic patient information</p>
+    <div class="card-codes">
+      <img src="{{ url_for('static', filename='cards/' ~ patient.card_code ~ '-qr.svg') }}" alt="QR code for {{ patient.pin }}">
+      <img src="{{ url_for('static', filename='cards/' ~ patient.card_code ~ '-barcode.svg') }}" alt="Code 128 barcode for {{ patient.pin }}">
+    </div>
+    <span class="code">{{ patient.card_code }}</span>
+  </article>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Patient record{% endblock %}
+{% block main %}
+<nav class="steps" aria-label="Registration progress">
+  <a href="{{ url_for('lookup') }}"><b>{{ icon('check', 14) }}</b> Find patient</a>
+  <span {% if not confirmed %}aria-current="step"{% endif %}><b>{% if confirmed %}{{ icon('check', 14) }}{% else %}2{% endif %}</b> Review records</span>
+  <span {% if confirmed %}aria-current="step"{% endif %}><b>3</b> Choose service</span>
+</nav>
+<section class="panel identity">
+  <div class="identity-heading">
+    <div>
+      <div class="identity-label"><span class="eyebrow">PATIENT RECORD</span><span class="badge {{ 'success-badge' if confirmed else 'demo' }}">{{ 'Identity confirmed' if confirmed else 'Confirm identity' }}</span></div>
+      <h1>{{ patient.name }}</h1>
+      <span class="code">{{ patient.pin }}</span>
+    </div>
+    {% if confirmed %}<form method="post" action="{{ url_for('reset_lookup') }}">{{ csrf() }}
+      <button class="secondary">Find another patient {{ icon('arrow', 17) }}</button>
+    </form>{% endif %}
+  </div>
+  <dl class="identity-details">
+    <div><dt>Date of birth</dt><dd>{{ patient.birth_date|date_label }}</dd></div>
+    <div><dt>Sex</dt><dd>{{ patient.sex }}</dd></div>
+    <div><dt>Area</dt><dd>{{ patient.area }}</dd></div>
+  </dl>
+</section>
+{% if not confirmed %}
+<section class="panel confirmation">
+  <div><h2>Does this match the patient?</h2><p class="muted">Check the name and date of birth before opening their records.</p></div>
+  <div class="button-row">
+    <form method="post" action="{{ url_for('confirm_patient', patient_id=patient.id) }}">{{ csrf() }}<button class="primary">{{ icon('check', 19) }} Confirm patient</button></form>
+    <form method="post" action="{{ url_for('reset_lookup') }}">{{ csrf() }}<button class="secondary">Reject match</button></form>
+  </div>
+</section>
+{% else %}
+<section class="section">
+  <div class="section-head"><h2>Patient services</h2><span lang="bn" class="muted">রোগীর সেবা</span></div>
+  <div class="services">
+    {% for key, (label, bangla, symbol, hint) in actions.items() %}
+    <a class="panel service-tile" href="{{ url_for('service', patient_id=patient.id, action=key) }}">
+      <span class="icon-box">{{ icon(symbol) }}</span><span><strong>{{ label }}</strong><small lang="bn">{{ bangla }}</small><span class="tile-hint">{{ hint }}</span></span>
+      {{ icon('arrow', 17) }}
+    </a>
+    {% endfor %}
+  </div>
+</section>
+{% if bookings or admission or prescriptions|selectattr('0.collection_id')|list %}
+<section class="section panel saved">
+  <h2>Saved services</h2>
+  {% for entry in bookings %}
+  <div class="row"><div><strong>APT-{{ '%04d'|format(entry.id) }} · {{ entry.department }}</strong><small>{{ entry.doctor }} · {{ entry.starts|date_label }}</small></div>
+  <a class="secondary" href="{{ url_for('confirmation', patient_id=patient.id, kind='appointment', entry_id=entry.id) }}">Appointment slip</a></div>
+  {% endfor %}
+  {% if admission %}
+  <div class="row"><div><strong>ADM-{{ '%04d'|format(admission.id) }} · {{ admission.ward }}</strong><small>Bed {{ admission.label }}</small></div>
+  <a class="secondary" href="{{ url_for('confirmation', patient_id=patient.id, kind='admission', entry_id=admission.id) }}">Admission slip</a></div>
+  {% endif %}
+  {% for rx, items in prescriptions if rx.collection_id %}
+  <div class="row"><div><strong>MED-{{ '%04d'|format(rx.collection_id) }} · Medicine collection</strong><small>{{ rx.clinician }} · {{ rx.on_date|date_label }}</small></div>
+  <span class="badge {{ 'success-badge' if rx.collection_status == 'Completed' else 'neutral' }}">{{ rx.collection_status }}</span></div>
+  {% endfor %}
+</section>
+{% endif %}
+<section class="section">
+  <div class="section-head"><h2>Available records</h2><span class="badge neutral">Read only</span></div>
+  <div class="records">
+  {% for heading, kinds, empty in [
+    ('Conditions & allergies', ['Condition', 'Allergy'], 'No conditions or allergies recorded.'),
+    ('Visit & admission history', ['Visit', 'Admission'], 'No previous visits or admissions available.'),
+    ('Laboratory reports', ['Report'], 'No released reports available.'),
+    ('Prescriptions', [], 'No prescriptions available.')
+  ] %}
+  <article class="panel record-group">
+    <h3>{{ heading }}</h3>
+    {% if heading == 'Prescriptions' %}
+      {% for rx, items in prescriptions %}
+      <div class="record"><strong>Prescription · {{ rx.on_date|date_label }}</strong>
+      <small>{{ rx.clinician }} · Demo Hospital</small><p>{{ items|map(attribute='medicine')|join(', ') }}</p></div>
+      {% else %}<p class="muted empty">{{ empty }}</p>{% endfor %}
+    {% else %}
+      {% for item in records if item.kind in kinds %}
+      <div class="record">
+        <strong>{{ item.title }}</strong><small>{{ item.on_date|date_label }} · {{ item.source }}</small>
+        {% if item.kind == 'Report' %}
+        <a class="quiet-link" href="{{ url_for('report_preview', patient_id=patient.id, ids=item.id) }}">View report {{ icon('arrow', 16) }}</a>
+        {% else %}<p>{{ item.details }}</p>{% endif %}
+      </div>
+      {% else %}<p class="muted empty">{{ empty }}</p>{% endfor %}
+    {% endif %}
+  </article>
+  {% endfor %}
+  </div>
+</section>
+{% endif %}
+{% endblock %}

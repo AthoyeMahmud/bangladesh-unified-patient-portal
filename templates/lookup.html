@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Find patient{% endblock %}
+{% block head %}
+{% if method in ('qr', 'barcode') %}
+<script defer src="{{ url_for('scanner_library') }}"></script>
+<script defer src="{{ url_for('static', filename='scanner.js') }}"></script>
+{% endif %}
+{% endblock %}
+{% block main %}
+<nav class="steps" aria-label="Registration progress">
+  <span aria-current="step"><b>1</b> Find patient</span><span><b>2</b> Review records</span><span><b>3</b> Choose service</span>
+</nav>
+<div class="page-heading">
+  <p class="eyebrow">REGISTRATION DESK <span lang="bn">· নিবন্ধন কাউন্টার</span></p>
+  <h1>Find a patient</h1>
+  <p>Choose an identification method to open the patient’s record.</p>
+</div>
+<div class="lookup-layout">
+  <section class="panel lookup-panel" aria-label="Patient identification">
+    <nav class="methods" aria-label="Identification methods">
+      {% for key, (label, bangla, symbol) in methods.items() %}
+      <a class="method" href="{{ url_for('lookup', method=key) }}" {% if method == key %}aria-current="page"{% endif %}>
+        {{ icon(symbol) }}<strong>{{ label }}</strong><small lang="bn">{{ bangla }}</small>
+      </a>
+      {% endfor %}
+    </nav>
+    <div class="lookup-body">
+      {% if method == 'fingerprint' %}
+      <div class="section-head"><h2>Fingerprint scan</h2><span class="badge demo">Simulated</span></div>
+      <p class="muted">Choose a simulated result to demonstrate the workflow.</p>
+      <form class="button-row" method="post">{{ csrf() }}<input type="hidden" name="method" value="{{ method }}">
+        <button class="primary" name="identifier" value="BUP-1001">Simulate match</button>
+        <button class="secondary" name="identifier" value="NO-MATCH">Simulate no match</button>
+        <button class="secondary" name="identifier" value="FAILED">Simulate scan failure</button>
+      </form>
+      {% else %}
+      <h2>{{ methods[method][0] }}</h2>
+      {% if method in ('qr', 'barcode') %}
+      <p class="muted">Scan a patient card or enter the code from a USB scanner.</p>
+      <div class="button-row scan-tools" data-scan-mode="{{ method }}">
+        <button id="camera" type="button" class="secondary">{{ icon('camera', 18) }} Start camera</button>
+        <button id="sample" type="button" class="secondary" data-image="{{ url_for('static', filename='cards/BUP-CARD-X6P2Q9-' ~ method ~ '.svg') }}">Scan sample image</button>
+        <label for="scan-image" class="file-label">Or choose an image</label><input id="scan-image" type="file" accept="image/*">
+      </div>
+      <p id="scan-status" class="scan-status" role="status"></p>
+      <video id="camera-view" autoplay muted playsinline hidden></video>
+      {% endif %}
+      <form method="post" class="lookup-form" id="identifier-form">
+        {{ csrf() }}<input type="hidden" name="method" value="{{ method }}">
+        <label for="identifier">{{ 'Patient Identification Number' if method == 'pin' else 'NID or birth registration number' if method == 'identity' else 'Scanned card code' }}</label>
+        <div class="input-action"><input id="identifier" name="identifier" required maxlength="80" autocomplete="off" spellcheck="false" autofocus
+          placeholder="{{ 'e.g. BUP-1001' if method == 'pin' else 'e.g. DEMO-NID-1001' if method == 'identity' else 'e.g. BUP-CARD-X6P2Q9' }}">
+          <button class="primary">{{ icon('search', 18) }} Find patient</button></div>
+      </form>
+      {% if method == 'pin' %}<p class="hint">Use the PIN printed on the patient’s card.</p>{% endif %}
+      {% if method == 'identity' %}<p class="hint">For a child, try birth registration number <b>DEMO-BRN-1003</b>.</p>{% endif %}
+      {% endif %}
+    </div>
+  </section>
+  <aside class="panel samples">
+    <p class="eyebrow">TRY IT OUT</p><h2>Demo patients</h2>
+    <p class="muted">Open a sample case to start.</p>
+    <form method="post">
+      {{ csrf() }}<input type="hidden" name="method" value="pin">
+      {% for patient in patients %}
+      <button class="sample" name="identifier" value="{{ patient.pin }}">
+        <span><strong>{{ patient.name }}</strong><small>{{ patient.pin }} · {{ ['Appointment & medicine', 'Admission order', 'Birth registration', 'No recorded history'][loop.index0] }}</small></span>
+        {{ icon('arrow', 17) }}
+      </button>
+      {% endfor %}
+    </form>
+    <a class="quiet-link" href="{{ url_for('demo_cards') }}">{{ icon('card', 17) }} View printable demo cards</a>
+  </aside>
+</div>
+{% endblock %}

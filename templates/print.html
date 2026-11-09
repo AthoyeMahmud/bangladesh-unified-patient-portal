@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block main %}
+<div class="print-controls button-row">
+  <a class="back-link" href="{{ url_for('patient_page', patient_id=patient.id) }}">{{ icon('back', 18) }} Back to patient record</a>
+  <button class="primary" type="button" data-print>{{ icon('print', 18) }} Print</button>
+</div>
+<article class="panel print-sheet">
+  <p class="eyebrow">DEMO HOSPITAL</p>
+  <h1>{{ title }}</h1>
+  <p class="print-disclaimer">Demo — synthetic patient information</p>
+  {{ patient_strip(patient) }}
+  {% if fields %}<dl class="print-fields">{% for label, value in fields %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl>{% endif %}
+  {% for report in reports %}
+  <section class="report-document">
+    <h2>{{ report.title }}</h2>
+    <p class="muted">{{ report.on_date|date_label }} · {{ report.source }}</p>
+    <p class="report-details">{{ report.details }}</p>
+  </section>
+  {% endfor %}
+</article>
+{% endblock %}
