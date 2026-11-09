@@ -47,6 +47,14 @@
       {% endif %}
       <form method="post" class="lookup-form" id="identifier-form">
         {{ csrf() }}<input type="hidden" name="method" value="{{ method }}">
+        {% if method == 'identity' %}
+        <label for="identity-type">Identification type</label>
+        <select id="identity-type" name="identity_type" required>
+          <option value="" disabled selected>Choose an ID type</option>
+          <option value="nid">National ID (NID)</option>
+          <option value="brn">Birth registration number (BRN)</option>
+        </select>
+        {% endif %}
         <label for="identifier">{{ 'Patient Identification Number' if method == 'pin' else 'NID or birth registration number' if method == 'identity' else 'Scanned card code' }}</label>
         <div class="input-action"><input id="identifier" name="identifier" required maxlength="80" autocomplete="off" spellcheck="false" autofocus
           placeholder="{{ 'e.g. BUP-1001' if method == 'pin' else 'e.g. DEMO-NID-1001' if method == 'identity' else 'e.g. BUP-CARD-X6P2Q9' }}">
@@ -55,6 +63,7 @@
       {% if method == 'pin' %}<p class="hint">Use the PIN printed on the patient’s card.</p>{% endif %}
       {% if method == 'identity' %}<p class="hint">For a child, try birth registration number <b>DEMO-BRN-1003</b>.</p>{% endif %}
       {% endif %}
+      <p class="hint">If you cannot verify the patient’s identity, use manual registration.</p>
     </div>
   </section>
   <aside class="panel samples">

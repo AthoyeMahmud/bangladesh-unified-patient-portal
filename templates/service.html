@@ -7,9 +7,10 @@
     <p class="eyebrow">PATIENT SERVICES <span lang="bn">· {{ actions[action][1] }}</span></p>
     <h1>{{ actions[action][0] }}</h1>
     {% if action == 'appointment' %}
-      <p class="muted">Choose an available appointment. Times are shown in Dhaka time.</p>
+      <p class="muted">Choose an available appointment in Dhaka time. Each patient can have one future booking per department.</p>
       {% if slots %}
-      <form method="post" class="form-stack">{{ csrf() }}
+      <form method="post" class="form-stack">{{ patient_form() }}
+        <input type="hidden" name="request_key" value="{{ request_key }}">
         <label for="slot">Department, doctor, and time</label>
         <select id="slot" name="slot" required>
           <option value="" selected disabled>Select an available time</option>
@@ -27,7 +28,7 @@
       {% if not orders %}<p class="notice">No open admission order is available for this patient.</p>
       {% elif not beds|selectattr('ward', 'in', orders|map(attribute='ward')|list)|list %}<p class="notice">No beds are available in the assigned ward.</p>
       {% else %}
-      <form method="post" class="form-stack">{{ csrf() }}
+      <form method="post" class="form-stack">{{ patient_form() }}
         <label for="order">Clinician’s admission order</label>
         <select id="order" name="order" required>{% for order in orders %}
           <option value="{{ order.id }}" data-ward="{{ order.ward }}">{{ order.clinician }} · {{ order.ward }} · {{ order.on_date|date_label }}</option>
@@ -42,10 +43,11 @@
       </form>
       {% endif %}
     {% elif action == 'reports' %}
-      <p class="muted">Select the released reports you want to print.</p>
+      <p class="muted">Select up to {{ report_limit }} released reports to print.</p>
       {% if reports %}
-      <form method="post" class="form-stack">{{ csrf() }}
-        <fieldset class="choices"><legend>Available reports</legend>
+      <form method="post" class="form-stack">{{ patient_form() }}
+        <fieldset class="choices" data-report-limit="{{ report_limit }}"><legend>Available reports</legend>
+          <p class="hint" data-report-count role="status"></p>
           {% for report in reports %}<label class="choice"><input type="checkbox" name="report" value="{{ report.id }}" {% if reports|length == 1 %}checked{% endif %}>
             <span><strong>{{ report.title }}</strong><small>{{ report.on_date|date_label }} · {{ report.source }}</small></span>
           </label>{% endfor %}
@@ -54,20 +56,25 @@
       </form>
       {% else %}<p class="notice">No released reports are available for this patient.</p>{% endif %}
     {% else %}
-      <p class="muted">Send an existing prescription to the pharmacy for collection.</p>
+      <p class="muted">Send an active prescription to the pharmacy for collection.</p>
       {% if not prescriptions %}<p class="notice">No prescriptions are available for this patient.</p>{% endif %}
       {% for rx, items in prescriptions %}
       <div class="prescription">
         <h2>Prescription · {{ rx.on_date|date_label }}</h2><p class="muted">{{ rx.clinician }}</p>
         <ul class="line-items">{% for item in items %}<li><span>{{ item.medicine }}</span><span>{{ item.prescribed - item.supplied }} remaining of {{ item.prescribed }}</span></li>{% endfor %}</ul>
         {% if rx.collection_id %}
-        <p><span class="badge neutral">{{ rx.collection_status }}</span> <span class="code">MED-{{ '%04d'|format(rx.collection_id) }}</span></p>
+        <p><span class="badge neutral">{{ rx.collection_status }}</span> <span class="code">{{ rx.collection_reference }}</span></p>
+        {% elif not rx.active %}
+        <p class="notice">Prescription inactive. Verify its status with the prescribing desk.</p>
         {% else %}
-        <form method="post">{{ csrf() }}<input type="hidden" name="prescription" value="{{ rx.id }}">
+        <form method="post">{{ patient_form() }}<input type="hidden" name="prescription" value="{{ rx.id }}">
         <button class="primary">Send to pharmacy {{ icon('arrow', 18) }}</button></form>
         {% endif %}
       </div>
       {% endfor %}
+    {% endif %}
+    {% if action != 'reports' %}
+    <p class="hint">If a save was interrupted, check Saved services in the patient record before retrying.</p>
     {% endif %}
   </section>
   <aside class="panel service-patient"><p class="eyebrow">PATIENT</p>{{ patient_strip(patient) }}

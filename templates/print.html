@@ -6,17 +6,23 @@
   <button class="primary" type="button" data-print>{{ icon('print', 18) }} Print</button>
 </div>
 <article class="panel print-sheet">
-  <p class="eyebrow">DEMO HOSPITAL</p>
-  <h1>{{ title }}</h1>
-  <p class="print-disclaimer">Demo — synthetic patient information</p>
-  {{ patient_strip(patient) }}
-  {% if fields %}<dl class="print-fields">{% for label, value in fields %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl>{% endif %}
-  {% for report in reports %}
-  <section class="report-document">
-    <h2>{{ report.title }}</h2>
-    <p class="muted">{{ report.on_date|date_label }} · {{ report.source }}</p>
-    <p class="report-details">{{ report.details }}</p>
-  </section>
-  {% endfor %}
+  <table class="print-packet" role="presentation">
+    <thead><tr><td>
+      <p class="eyebrow">DEMO HOSPITAL</p>
+      <h1>{{ title }}</h1>
+      <p class="print-disclaimer">Demo — synthetic patient information</p>
+      {{ patient_strip(patient) }}
+    </td></tr></thead>
+    <tbody>
+    {% if fields %}<tr><td><dl class="print-fields">{% for label, value in fields %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}</dl></td></tr>{% endif %}
+    {% for report in reports %}
+    <tr><td><section class="report-document">
+      <h2>{{ report.title }}</h2>
+      <p class="muted">{{ report.on_date|date_label }} · {{ report.source }}</p>
+      <p class="report-details">{{ report.details }}</p>
+    </section></td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
 </article>
 {% endblock %}

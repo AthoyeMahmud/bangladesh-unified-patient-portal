@@ -12,6 +12,15 @@ PATIENTS = [
     (3, "BUP-1003", "Nusrat Akter", "2017-07-21", "Female", "Uttara, Dhaka", "BUP-CARD-K9M5J8", None, "DEMO-BRN-1003"),
     (4, "BUP-1004", "Rafi Hasan", "1997-01-16", "Male", "Dhanmondi, Dhaka", "BUP-CARD-W8S4L2", "DEMO-NID-1004", None),
 ]
+DEMO_ADMISSION = (1, 2, "Dr Farhana Islam", "Medicine ward")
+DEMO_PRESCRIPTION = (1, 1, "Dr Farhana Islam")
+DEMO_ITEMS = [(1, 1, "Ferrous sulfate tablets", 14), (2, 1, "Folic acid tablets", 7)]
+DEMO_SLOTS = [
+    ("Medicine", "Dr Farhana Islam", "09:00"),
+    ("Medicine", "Dr Farhana Islam", "09:30"),
+    ("Paediatrics", "Dr Saif Ahmed", "10:00"),
+    ("Surgery", "Dr Tania Sultana", "11:00"),
+]
 
 
 def seed(db):
@@ -46,20 +55,25 @@ def seed(db):
             (3, "Visit", "Paediatrics outpatient visit", previous, "Demo Hospital · Paediatrics",
              "Routine follow-up recorded.", 1),
         ])
-        db.execute("INSERT INTO admission_orders VALUES (1, 2, 'Dr Farhana Islam', 'Medicine ward', ?)", (today.isoformat(),))
+        db.execute(
+            "INSERT INTO admission_orders(id,patient_id,clinician,ward,on_date,active) VALUES (?,?,?,?,?,1)",
+            (*DEMO_ADMISSION, today.isoformat()),
+        )
         db.executemany("INSERT INTO beds VALUES (?, ?, ?)", [
             (1, "Medicine ward", "M-04"), (2, "Medicine ward", "M-07"), (3, "Surgery ward", "S-02"),
         ])
-        db.execute("INSERT INTO prescriptions VALUES (1, 1, 'Dr Farhana Islam', ?)", (previous,))
-        db.executemany("INSERT INTO prescription_items VALUES (?, 1, ?, ?, 0)", [
-            (1, "Ferrous sulfate tablets", 14), (2, "Folic acid tablets", 7),
-        ])
+        db.execute(
+            "INSERT INTO prescriptions(id,patient_id,clinician,on_date,active) VALUES (?,?,?,?,1)",
+            (*DEMO_PRESCRIPTION, previous),
+        )
+        db.executemany("INSERT INTO prescription_items VALUES (?,?,?,?,0)", DEMO_ITEMS)
+    seed_slots(db, today)
 
+
+def seed_slots(db, today):
     for days in range(1, 5):
-        date = (today + timedelta(days=days)).isoformat()
-        db.executemany("INSERT OR IGNORE INTO slots(department, doctor, starts) VALUES (?, ?, ?)", [
-            ("Medicine", "Dr Farhana Islam", f"{date} 09:00"),
-            ("Medicine", "Dr Farhana Islam", f"{date} 09:30"),
-            ("Paediatrics", "Dr Saif Ahmed", f"{date} 10:00"),
-            ("Surgery", "Dr Tania Sultana", f"{date} 11:00"),
-        ])
+        day = (today + timedelta(days=days)).isoformat()
+        db.executemany(
+            "INSERT OR IGNORE INTO slots(department, doctor, starts) VALUES (?, ?, ?)",
+            [(department, doctor, f"{day} {time}") for department, doctor, time in DEMO_SLOTS],
+        )

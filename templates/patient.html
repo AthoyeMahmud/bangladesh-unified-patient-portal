@@ -2,33 +2,41 @@
 {% block title %}Patient record{% endblock %}
 {% block main %}
 <nav class="steps" aria-label="Registration progress">
-  <a href="{{ url_for('lookup') }}"><b>{{ icon('check', 14) }}</b> Find patient</a>
+  <form method="post" action="{{ url_for('reset_lookup') }}">{{ patient_form() }}
+    <button class="text-button"><b>{{ icon('check', 14) }}</b> Find patient</button>
+  </form>
   <span {% if not confirmed %}aria-current="step"{% endif %}><b>{% if confirmed %}{{ icon('check', 14) }}{% else %}2{% endif %}</b> Review records</span>
   <span {% if confirmed %}aria-current="step"{% endif %}><b>3</b> Choose service</span>
 </nav>
 <section class="panel identity">
   <div class="identity-heading">
     <div>
-      <div class="identity-label"><span class="eyebrow">PATIENT RECORD</span><span class="badge {{ 'success-badge' if confirmed else 'demo' }}">{{ 'Identity confirmed' if confirmed else 'Confirm identity' }}</span></div>
+      <div class="identity-label"><span class="eyebrow">PATIENT RECORD</span><span class="badge {{ 'success-badge' if confirmed else 'demo' }}">{{ 'Identity confirmed' if confirmed else 'Confirm identity' if can_confirm else 'Manual verification required' }}</span></div>
       <h1>{{ patient.name }}</h1>
       <span class="code">{{ patient.pin }}</span>
     </div>
-    {% if confirmed %}<form method="post" action="{{ url_for('reset_lookup') }}">{{ csrf() }}
+    {% if confirmed %}<form method="post" action="{{ url_for('reset_lookup') }}">{{ patient_form() }}
       <button class="secondary">Find another patient {{ icon('arrow', 17) }}</button>
     </form>{% endif %}
   </div>
   <dl class="identity-details">
-    <div><dt>Date of birth</dt><dd>{{ patient.birth_date|date_label }}</dd></div>
+    <div><dt>Date of birth</dt><dd>{{ patient.birth_date|date_label if can_confirm else 'Date unavailable' }}</dd></div>
     <div><dt>Sex</dt><dd>{{ patient.sex }}</dd></div>
     <div><dt>Area</dt><dd>{{ patient.area }}</dd></div>
   </dl>
 </section>
 {% if not confirmed %}
 <section class="panel confirmation">
+  {% if can_confirm %}
   <div><h2>Does this match the patient?</h2><p class="muted">Check the name and date of birth before opening their records.</p></div>
+  {% else %}
+  <div><h2>Manual verification required</h2><p class="muted">The name or full date of birth is missing. Use the hospital’s manual registration process.</p></div>
+  {% endif %}
   <div class="button-row">
-    <form method="post" action="{{ url_for('confirm_patient', patient_id=patient.id) }}">{{ csrf() }}<button class="primary">{{ icon('check', 19) }} Confirm patient</button></form>
-    <form method="post" action="{{ url_for('reset_lookup') }}">{{ csrf() }}<button class="secondary">Reject match</button></form>
+    {% if can_confirm %}
+    <form method="post" action="{{ url_for('confirm_patient', patient_id=patient.id) }}">{{ patient_form() }}<button class="primary">{{ icon('check', 19) }} Confirm patient</button></form>
+    {% endif %}
+    <form method="post" action="{{ url_for('reset_lookup') }}">{{ patient_form() }}<button class="secondary">Reject match</button></form>
   </div>
 </section>
 {% else %}
@@ -43,19 +51,42 @@
     {% endfor %}
   </div>
 </section>
-{% if bookings or admission or prescriptions|selectattr('0.collection_id')|list %}
+{% if bookings or admissions or prescriptions|selectattr('0.collection_id')|list %}
 <section class="section panel saved">
   <h2>Saved services</h2>
   {% for entry in bookings %}
-  <div class="row"><div><strong>APT-{{ '%04d'|format(entry.id) }} · {{ entry.department }}</strong><small>{{ entry.doctor }} · {{ entry.starts|date_label }}</small></div>
-  <a class="secondary" href="{{ url_for('confirmation', patient_id=patient.id, kind='appointment', entry_id=entry.id) }}">Appointment slip</a></div>
+  <div class="row"><div><strong class="receipt">{{ entry.reference }} · {{ entry.department }}</strong>
+    <small>{{ entry.doctor }} · {{ entry.starts|date_label }}{% if entry.cancelled_at %} · Cancelled{% endif %}</small></div>
+    <div class="button-row">
+      <a class="secondary" href="{{ url_for('confirmation', patient_id=patient.id, kind='appointment', entry_id=entry.id) }}">Appointment slip</a>
+      {% if not entry.cancelled_at and entry.starts > now %}
+      <form method="post" action="{{ url_for('cancel_appointment', patient_id=patient.id, entry_id=entry.id) }}">
+        {{ patient_form() }}<button class="secondary">Cancel appointment</button>
+      </form>
+      {% endif %}
+    </div>
+  </div>
   {% endfor %}
-  {% if admission %}
-  <div class="row"><div><strong>ADM-{{ '%04d'|format(admission.id) }} · {{ admission.ward }}</strong><small>Bed {{ admission.label }}</small></div>
+  {% for admission in admissions %}
+  <div class="row"><div><strong class="receipt">{{ admission.reference }} · {{ admission.ward }}</strong>
+    <small>Bed {{ admission.label }} · {{ {'discharge': 'Discharged', 'transfer': 'Transferred'}.get(admission.release_reason, 'Admitted') }}</small></div>
   <a class="secondary" href="{{ url_for('confirmation', patient_id=patient.id, kind='admission', entry_id=admission.id) }}">Admission slip</a></div>
+  {% if not admission.released_at %}
+  <form method="post" class="form-stack" action="{{ url_for('release_admission', patient_id=patient.id, entry_id=admission.id) }}">
+    {{ patient_form() }}
+    <label>Reason for releasing bed {{ admission.label }}
+      <select name="reason" required>
+        <option value="" disabled selected>Choose a reason</option>
+        <option value="discharge">Discharged</option><option value="transfer">Transferred</option>
+      </select>
+    </label>
+    <label class="choice"><input type="checkbox" name="ward_confirmed" value="confirmed" required> The ward confirmed that the patient has left this bed.</label>
+    <div><button class="secondary">Release bed</button></div>
+  </form>
   {% endif %}
+  {% endfor %}
   {% for rx, items in prescriptions if rx.collection_id %}
-  <div class="row"><div><strong>MED-{{ '%04d'|format(rx.collection_id) }} · Medicine collection</strong><small>{{ rx.clinician }} · {{ rx.on_date|date_label }}</small></div>
+  <div class="row"><div><strong class="receipt">{{ rx.collection_reference }} · Medicine collection</strong><small>{{ rx.clinician }} · {{ rx.on_date|date_label }}</small></div>
   <span class="badge {{ 'success-badge' if rx.collection_status == 'Completed' else 'neutral' }}">{{ rx.collection_status }}</span></div>
   {% endfor %}
 </section>

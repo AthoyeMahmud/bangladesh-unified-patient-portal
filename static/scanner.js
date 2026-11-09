@@ -30,14 +30,26 @@ function submitCode(result) {
   form.requestSubmit();
 }
 
+function fallback(message) {
+  statusLine.textContent = message;
+  identifier.focus();
+}
+
+function scannerAvailable() {
+  if (zxing?.BrowserMultiFormatReader) return true;
+  fallback("The scanner library did not load. Enter the code manually.");
+  return false;
+}
+
 camera.addEventListener("click", async () => {
   if (cameraReader) {
     stopCamera();
     statusLine.textContent = "Camera stopped.";
     return;
   }
-  if (!zxing || !navigator.mediaDevices?.getUserMedia) {
-    statusLine.textContent = "Camera scanning is unavailable. Use an image or enter the code.";
+  if (!scannerAvailable()) return;
+  if (!navigator.mediaDevices?.getUserMedia) {
+    fallback("Camera scanning is unavailable. Use an image or enter the code.");
     return;
   }
   const reader = cameraReader = newReader();
@@ -53,19 +65,20 @@ camera.addEventListener("click", async () => {
   } catch {
     if (scanRun !== run) return;
     stopCamera();
-    statusLine.textContent = "Could not open the camera. Use an image or enter the code.";
+    fallback("Could not open the camera. Use an image or enter the code.");
   }
 });
 
 async function scanImage(url) {
   stopCamera();
+  if (!scannerAvailable()) return;
   const run = scanRun;
   statusLine.textContent = "Reading the image…";
   try {
     const result = await newReader().decodeFromImageUrl(url);
     if (scanRun === run) submitCode(result);
   } catch {
-    if (scanRun === run) statusLine.textContent = "Could not read this code. Try a clearer image or enter it.";
+    if (scanRun === run) fallback("Could not read this code. Try a clearer image or enter it.");
   }
 }
 

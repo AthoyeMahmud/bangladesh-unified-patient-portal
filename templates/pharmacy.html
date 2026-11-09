@@ -2,34 +2,42 @@
 {% block title %}Pharmacy desk{% endblock %}
 {% block main %}
 {% if collection %}
-<a class="back-link" href="{{ url_for('pharmacy') }}">{{ icon('back', 18) }} Back to collection queue</a>
+{% set can_dispense = can_confirm and collection.prescription_active and collection.status != 'Completed' %}
+<a class="back-link" href="{{ url_for('pharmacy', view='active' if collection.prescription_active and collection.status != 'Completed' else 'history') }}">{{ icon('back', 18) }} Back to collection queue</a>
 <div class="service-layout">
   <section class="panel service-panel">
     <p class="eyebrow">PHARMACY DESK <span lang="bn">· ওষুধ কাউন্টার</span></p>
     <h1>Record medicine collection</h1>
-    <div class="section-head"><span class="code">MED-{{ '%04d'|format(collection.id) }}</span><span class="badge {{ 'success-badge' if collection.status == 'Completed' else 'neutral' }}">{{ collection.status }}</span></div>
+    <div class="section-head"><span class="code">{{ collection.reference }}</span><span class="badge {{ 'success-badge' if collection.status == 'Completed' else 'neutral' }}">{{ 'Prescription inactive' if not collection.prescription_active and collection.status != 'Completed' else collection.status }}</span></div>
     <p class="muted">Prescription from {{ collection.clinician }} · {{ collection.on_date|date_label }}</p>
     <form method="post" class="form-stack">{{ csrf() }}<input type="hidden" name="revision" value="{{ collection.revision }}">
       <ul class="line-items pharmacy-items">
       {% for item in items %}{% set remaining = item.prescribed - item.supplied %}
         <li>
           <div><strong>{{ item.medicine }}</strong><small>{{ item.supplied }} supplied · {{ remaining }} remaining</small></div>
-          {% if remaining %}
-          <label>Quantity to supply <input type="number" name="quantity_{{ item.id }}" value="0" min="0" max="{{ remaining }}" step="1" required aria-label="Quantity to supply for {{ item.medicine }}"></label>
+          {% if remaining and can_dispense %}
+          <label>Quantity to supply <input type="text" inputmode="numeric" maxlength="6" pattern="[0-9০-৯]{1,6}" name="quantity_{{ item.id }}" value="{{ pending.get('quantity_' ~ item.id, '0') }}" aria-label="Quantity to supply for {{ item.medicine }}, line {{ item.id }}"></label>
           {% endif %}
         </li>
       {% endfor %}
       </ul>
-      {% if collection.status != 'Completed' %}
+      {% if not can_confirm %}
+      <p class="notice">Manual verification required. The patient’s name or full date of birth is missing.</p>
+      {% elif not collection.prescription_active and collection.status != 'Completed' %}
+      <p class="notice">Verify the prescription with the prescribing desk before supplying more medicine.</p>
+      {% elif can_dispense %}
       <label class="choice identity-check"><input type="checkbox" name="identity" value="confirmed" required> I confirmed the patient’s name and date of birth.</label>
       <div class="button-row"><button class="primary" name="outcome" value="supply">Save supplied quantities {{ icon('check', 18) }}</button>
-      <button class="secondary" name="outcome" value="unavailable">Mark unavailable</button></div>
+      <button class="secondary" name="outcome" value="unavailable">Mark remaining unavailable</button></div>
+      <p class="hint">If a save was interrupted, reopen this request and check its history before retrying.</p>
       {% endif %}
     </form>
     {% if events %}
     <section class="section"><h2>Collection history</h2>
       {% for event in events %}
-      <div class="row"><strong>{{ event.outcome }}</strong><small>{{ event.created_at|date_label }} UTC · {{ event.staff }}</small></div>
+      <div class="row"><div><strong>{{ event.outcome }}</strong>
+        {% for line in event.lines %}<small>{% if line.item_id is defined %}Line {{ line.item_id }} · {% endif %}{{ line.medicine }} · {{ line.quantity }} supplied</small>{% endfor %}
+      </div><small>{{ event.created_at|date_label }} UTC · {{ event.staff }}</small></div>
       {% endfor %}
     </section>
     {% endif %}
@@ -39,13 +47,24 @@
 {% else %}
 <div class="page-heading"><p class="eyebrow">PHARMACY DESK <span lang="bn">· ওষুধ কাউন্টার</span></p><h1>Medicine collection</h1><p>Open a request from the registration desk to record what was supplied.</p></div>
 <section class="panel queue" aria-label="Collection requests">
-  <div class="section-head"><h2>Collection queue</h2><span class="badge neutral">{{ queue|length }} {{ 'request' if queue|length == 1 else 'requests' }}</span></div>
+  <nav class="button-row" aria-label="Collection queue views">
+    <a class="secondary" href="{{ url_for('pharmacy') }}" {% if view == 'active' %}aria-current="page"{% endif %}>Active requests</a>
+    <a class="secondary" href="{{ url_for('pharmacy', view='history') }}" {% if view == 'history' %}aria-current="page"{% endif %}>History</a>
+  </nav>
+  <div class="section-head"><h2>{{ 'Active requests' if view == 'active' else 'Collection history' }}</h2><span class="badge neutral">{{ queue|length }} on this page</span></div>
   {% for item in queue %}
   <a class="queue-row" href="{{ url_for('pharmacy_detail', collection_id=item.id) }}">
-    <span class="icon-box">{{ icon('pill') }}</span><span><strong>{{ item.name }}</strong><small>MED-{{ '%04d'|format(item.id) }} · {{ item.pin }}</small></span>
+    <span class="icon-box">{{ icon('pill') }}</span><span><strong>{{ item.name }}</strong><small class="receipt">{{ item.reference }} · {{ item.pin }}</small></span>
     <span class="badge {{ 'success-badge' if item.status == 'Completed' else 'neutral' }}">{{ item.status }}</span>{{ icon('arrow', 18) }}
   </a>
-  {% else %}<p class="notice">No collection requests yet. Requests appear after registration sends a prescription.</p>{% endfor %}
+  {% else %}<p class="notice">No collection requests on this page.</p>{% endfor %}
+  {% if page > 1 or has_next %}
+  <nav class="button-row queue-pages" aria-label="Collection pages">
+    {% if page > 1 %}<a class="secondary" href="{{ url_for('pharmacy', view=view, page=page-1) }}">Previous page</a>{% endif %}
+    <span>Page {{ page }}</span>
+    {% if has_next %}<a class="secondary" href="{{ url_for('pharmacy', view=view, page=page+1) }}">Next page</a>{% endif %}
+  </nav>
+  {% endif %}
 </section>
 {% endif %}
 {% endblock %}

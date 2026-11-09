@@ -2,9 +2,11 @@
 <svg class="icon" width="{{ size }}" height="{{ size }}" aria-hidden="true"><use href="#i-{{ name }}"/></svg>
 {%- endmacro %}
 {% macro csrf() -%}<input type="hidden" name="csrf" value="{{ csrf_token }}">{%- endmacro %}
+{% macro patient_form() -%}{{ csrf() }}<input type="hidden" name="selection" value="{{ selection_token }}">{%- endmacro %}
 {% macro patient_strip(patient) -%}
+{% set names = patient.name.split() %}
 <div class="patient-strip">
-  <span class="avatar">{{ patient.name.split()[0][0] }}{{ patient.name.split()[-1][0] }}</span>
+  <span class="avatar">{{ names[0][0] ~ names[-1][0] if names else '?' }}</span>
   <div><strong>{{ patient.name }}</strong><span class="patient-meta">{{ patient.pin }} · Born {{ patient.birth_date|date_label }}</span></div>
 </div>
 {%- endmacro %}
